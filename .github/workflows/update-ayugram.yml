@@ -14,12 +14,10 @@ jobs:
     container:
       image: gentoo/stage3:latest
     steps:
-      - name: Prepare Git
+      - name: Prepare Git and jq
         run: |
           emerge-webrsync
-          if ! command -v git >/dev/null 2>&1; then
-            emerge --quiet --usepkg --getbinpkg dev-vcs/git
-          fi
+          emerge --quiet --usepkg --getbinpkg dev-vcs/git app-misc/jq
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - uses: actions/checkout@v4
