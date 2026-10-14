@@ -14,10 +14,12 @@ jobs:
     container:
       image: gentoo/stage3:latest
     steps:
-      - name: Install Git
+      - name: Prepare Git
         run: |
           emerge-webrsync
-          emerge --quiet app-portage/git
+          if ! command -v git >/dev/null 2>&1; then
+            emerge --quiet --usepkg --getbinpkg dev-vcs/git
+          fi
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - uses: actions/checkout@v4
