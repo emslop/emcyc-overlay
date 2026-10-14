@@ -11,11 +11,19 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    container:
+      image: gentoo/stage3:latest
     steps:
+      - name: Install Git
+        run: |
+          emerge --quiet app-portage/git
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - uses: actions/checkout@v4
 
       - name: Check latest AyuGram release
         id: release
+        shell: bash
         run: |
           latest=$(curl -fsSL \
             https://api.github.com/repos/AyuGram/AyuGramDesktop/releases/latest \
@@ -24,6 +32,7 @@ jobs:
 
       - name: Detect current ebuild version
         id: current
+        shell: bash
         run: |
           file=$(find net-im/ayugram-desktop -maxdepth 1 \
             -name 'ayugram-desktop-*.ebuild' | sort -V | tail -1)
@@ -31,12 +40,15 @@ jobs:
           echo "file=$file" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Bump ebuild and commit directly
+      - name: Bump ebuild, generate Manifest, and commit directly
         if: steps.release.outputs.version != steps.current.outputs.version
+        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git mv "${{ steps.current.outputs.file }}" \
-            "net-im/ayugram-desktop/ayugram-desktop-${{ steps.release.outputs.version }}.ebuild"
+          new_ebuild="net-im/ayugram-desktop/ayugram-desktop-${{ steps.release.outputs.version }}.ebuild"
+          git mv "${{ steps.current.outputs.file }}" "$new_ebuild"
+          ebuild "$new_ebuild" manifest
+          git add net-im/ayugram-desktop/Manifest
           git commit -m "net-im/ayugram-desktop: bump to ${{ steps.release.outputs.version }}"
           git push origin HEAD:main
