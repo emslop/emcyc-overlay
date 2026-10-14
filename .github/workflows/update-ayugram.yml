@@ -1,0 +1,42 @@
+name: Update ayugram-desktop
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check latest AyuGram release
+        id: release
+        run: |
+          latest=$(curl -fsSL \
+            https://api.github.com/repos/AyuGram/AyuGramDesktop/releases/latest \
+            | jq -r '.tag_name | ltrimstr("v")')
+          echo "version=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Detect current ebuild version
+        id: current
+        run: |
+          file=$(find net-im/ayugram-desktop -maxdepth 1 \
+            -name 'ayugram-desktop-*.ebuild' | sort -V | tail -1)
+          version=$(basename "$file" .ebuild | sed 's/.*-//')
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Bump ebuild and commit directly
+        if: steps.release.outputs.version != steps.current.outputs.version
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git mv "${{ steps.current.outputs.file }}" \
+            "net-im/ayugram-desktop/ayugram-desktop-${{ steps.release.outputs.version }}.ebuild"
+          git commit -m "net-im/ayugram-desktop: bump to ${{ steps.release.outputs.version }}"
+          git push origin HEAD:main
