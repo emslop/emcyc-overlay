@@ -44,6 +44,7 @@ CDEPEND="
 	media-libs/opus
 	media-libs/rnnoise
 	>=media-libs/tg_owt-0_pre20241202:=[screencast=,X=]
+	>=media-libs/tlottie-0.1.0_pre20260911
 	>=media-video/ffmpeg-6:=[opus,vpx]
 	net-libs/tdlib:=[tde2e]
 	sys-apps/hwloc:=
@@ -125,7 +126,6 @@ src_prepare() {
 		-i cmake/external/minizip/CMakeLists.txt || die
 
 	local keep=(
-		rlottie
 		libprisma
 		tgcalls
 		xdg-desktop-portal

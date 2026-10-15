@@ -30,16 +30,26 @@ jobs:
             -name 'ayugram-desktop-*.ebuild' | sort -V | tail -1)
           echo "file=$file" >> "$GITHUB_OUTPUT"
 
+          tlottie_file=$(find media-libs/tlottie -maxdepth 1 \
+            -name 'tlottie-*.ebuild' | sort -V | tail -1)
+          echo "tlottie_file=$tlottie_file" >> "$GITHUB_OUTPUT"
+
       - name: Generate Manifest and commit
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           ebuild "${{ steps.ebuild.outputs.file }}" manifest
-          if git diff --quiet -- net-im/ayugram-desktop/Manifest; then
-            echo "Manifest is already up to date"
+          ebuild "${{ steps.ebuild.outputs.tlottie_file }}" manifest
+
+          if git diff --quiet -- \
+            net-im/ayugram-desktop/Manifest \
+            media-libs/tlottie/Manifest; then
+            echo "Manifests are already up to date"
             exit 0
           fi
-          git add net-im/ayugram-desktop/Manifest
+
+          git add net-im/ayugram-desktop/Manifest media-libs/tlottie/Manifest
           git commit -m "net-im/ayugram-desktop: regenerate Manifest"
           git push origin HEAD:main
