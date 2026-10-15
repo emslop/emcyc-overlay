@@ -35,18 +35,7 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - name: Detect current ebuild version
-        id: current
-        shell: bash
-        run: |
-          file=$(find net-im/ayugram-desktop -maxdepth 1 \
-            -name 'ayugram-desktop-*.ebuild' | sort -V | tail -1)
-          version=$(basename "$file" .ebuild | sed 's/.*-//')
-          echo "file=$file" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
       - name: Bump ebuild, generate Manifest, and commit directly
-        if: steps.release.outputs.version != steps.current.outputs.version
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
