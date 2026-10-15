@@ -22,7 +22,7 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - name: Detect newest ebuild
+      - name: Detect newest ebuilds
         id: ebuild
         shell: bash
         run: |
@@ -34,14 +34,28 @@ jobs:
             -name 'tlottie-*.ebuild' | sort -V | tail -1)
           echo "tlottie_file=$tlottie_file" >> "$GITHUB_OUTPUT"
 
-      - name: Generate Manifest and commit
+      - name: Generate Manifests and commit
         shell: bash
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          export DISTDIR="$(mktemp -d)"
+
+          # A stale or wrong digest in an existing Manifest makes `ebuild manifest`
+          # refuse the freshly fetched file, so always rebuild from scratch.
+          rm -f net-im/ayugram-desktop/Manifest media-libs/tlottie/Manifest
+
           ebuild "${{ steps.ebuild.outputs.file }}" manifest
           ebuild "${{ steps.ebuild.outputs.tlottie_file }}" manifest
+
+          for m in net-im/ayugram-desktop/Manifest media-libs/tlottie/Manifest; do
+            if [[ ! -s "$m" ]]; then
+              echo "::error::$m is empty after regeneration"
+              exit 1
+            fi
+          done
 
           if git diff --quiet -- \
             net-im/ayugram-desktop/Manifest \
@@ -51,5 +65,5 @@ jobs:
           fi
 
           git add net-im/ayugram-desktop/Manifest media-libs/tlottie/Manifest
-          git commit -m "net-im/ayugram-desktop: regenerate Manifest"
+          git commit -m "net-im/ayugram-desktop: regenerate Manifests"
           git push origin HEAD:main
