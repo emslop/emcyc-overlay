@@ -148,7 +148,6 @@ src_prepare() {
 			-i Telegram/lib_webview/webview/platform/linux/webview_linux_compositor.h || die
 	fi
 
-	rm Telegram/ThirdParty/rlottie/CMakeLists.txt || die
 	rm cmake/external/glib/cppgir/expected-lite/example/CMakeLists.txt || die
 	rm cmake/external/glib/cppgir/expected-lite/test/CMakeLists.txt || die
 	rm cmake/external/glib/cppgir/expected-lite/CMakeLists.txt || die
