@@ -14,6 +14,12 @@ jobs:
     container:
       image: gentoo/stage3:latest
     steps:
+      - name: Prepare Git and jq
+        run: |
+          emerge-webrsync
+          emerge --quiet --usepkg --getbinpkg dev-vcs/git app-misc/jq
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Resolve target version
         id: release
         shell: bash
@@ -26,12 +32,6 @@ jobs:
               | jq -r '.tag_name | ltrimstr("v")')
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Prepare Git and jq
-        run: |
-          emerge-webrsync
-          emerge --quiet --usepkg --getbinpkg dev-vcs/git app-misc/jq
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - uses: actions/checkout@v4
 
