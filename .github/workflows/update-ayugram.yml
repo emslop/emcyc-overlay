@@ -1,4 +1,4 @@
-name: Update ayugram-desktop
+name: Update ayugram-desktop manifest
 
 on:
   repository_dispatch:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  update:
+  manifest:
     runs-on: ubuntu-latest
     container:
       image: gentoo/stage3:latest
@@ -20,29 +20,26 @@ jobs:
           emerge --quiet --usepkg --getbinpkg dev-vcs/git app-misc/jq
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: Resolve target version
-        id: release
-        shell: bash
-        run: |
-          if [[ -n "${{ github.event.client_payload.version }}" ]]; then
-            version="${{ github.event.client_payload.version }}"
-          else
-            version=$(curl -fsSL \
-              https://api.github.com/repos/AyuGram/AyuGramDesktop/releases/latest \
-              | jq -r '.tag_name | ltrimstr("v")')
-          fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
       - uses: actions/checkout@v4
 
-      - name: Bump ebuild, generate Manifest, and commit directly
+      - name: Detect newest ebuild
+        id: ebuild
+        shell: bash
+        run: |
+          file=$(find net-im/ayugram-desktop -maxdepth 1 \
+            -name 'ayugram-desktop-*.ebuild' | sort -V | tail -1)
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Manifest and commit
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          new_ebuild="net-im/ayugram-desktop/ayugram-desktop-${{ steps.release.outputs.version }}.ebuild"
-          git mv "${{ steps.current.outputs.file }}" "$new_ebuild"
-          ebuild "$new_ebuild" manifest
+          ebuild "${{ steps.ebuild.outputs.file }}" manifest
+          if git diff --quiet -- net-im/ayugram-desktop/Manifest; then
+            echo "Manifest is already up to date"
+            exit 0
+          fi
           git add net-im/ayugram-desktop/Manifest
-          git commit -m "net-im/ayugram-desktop: bump to ${{ steps.release.outputs.version }}"
+          git commit -m "net-im/ayugram-desktop: regenerate Manifest"
           git push origin HEAD:main

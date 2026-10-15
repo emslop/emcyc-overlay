@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   check:
@@ -28,9 +28,20 @@ jobs:
           file=$(find net-im/ayugram-desktop -maxdepth 1 \
             -name 'ayugram-desktop-*.ebuild' | sort -V | tail -1)
           version=$(basename "$file" .ebuild | sed 's/.*-//')
+          echo "file=$file" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Trigger Gentoo update workflow
+      - name: Rename ebuild and commit bump
+        if: steps.release.outputs.version != steps.current.outputs.version
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git mv "${{ steps.current.outputs.file }}" \
+            "net-im/ayugram-desktop/ayugram-desktop-${{ steps.release.outputs.version }}.ebuild"
+          git commit -m "net-im/ayugram-desktop: bump to ${{ steps.release.outputs.version }}"
+          git push origin HEAD:main
+
+      - name: Trigger Gentoo manifest workflow
         if: steps.release.outputs.version != steps.current.outputs.version
         env:
           GH_TOKEN: ${{ github.token }}
