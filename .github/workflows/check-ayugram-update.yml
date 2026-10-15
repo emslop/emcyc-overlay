@@ -1,0 +1,40 @@
+name: Check ayugram-desktop update
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check latest AyuGram release
+        id: release
+        run: |
+          latest=$(curl -fsSL \
+            https://api.github.com/repos/AyuGram/AyuGramDesktop/releases/latest \
+            | jq -r '.tag_name | ltrimstr("v")')
+          echo "version=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Detect current ebuild version
+        id: current
+        run: |
+          file=$(find net-im/ayugram-desktop -maxdepth 1 \
+            -name 'ayugram-desktop-*.ebuild' | sort -V | tail -1)
+          version=$(basename "$file" .ebuild | sed 's/.*-//')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger Gentoo update workflow
+        if: steps.release.outputs.version != steps.current.outputs.version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/dispatches \
+            -f event_type=ayugram-update \
+            -f 'client_payload[version]=${{ steps.release.outputs.version }}'

@@ -1,8 +1,8 @@
 name: Update ayugram-desktop
 
 on:
-  schedule:
-    - cron: "0 3 * * *"
+  repository_dispatch:
+    types: [ayugram-update]
   workflow_dispatch:
 
 permissions:
@@ -14,6 +14,19 @@ jobs:
     container:
       image: gentoo/stage3:latest
     steps:
+      - name: Resolve target version
+        id: release
+        shell: bash
+        run: |
+          if [[ -n "${{ github.event.client_payload.version }}" ]]; then
+            version="${{ github.event.client_payload.version }}"
+          else
+            version=$(curl -fsSL \
+              https://api.github.com/repos/AyuGram/AyuGramDesktop/releases/latest \
+              | jq -r '.tag_name | ltrimstr("v")')
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Prepare Git and jq
         run: |
           emerge-webrsync
@@ -21,15 +34,6 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - uses: actions/checkout@v4
-
-      - name: Check latest AyuGram release
-        id: release
-        shell: bash
-        run: |
-          latest=$(curl -fsSL \
-            https://api.github.com/repos/AyuGram/AyuGramDesktop/releases/latest \
-            | jq -r '.tag_name | ltrimstr("v")')
-          echo "version=$latest" >> "$GITHUB_OUTPUT"
 
       - name: Detect current ebuild version
         id: current
