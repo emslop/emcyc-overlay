@@ -1,0 +1,90 @@
+diff --git a/Telegram/SourceFiles/data/components/sponsored_messages.cpp b/Telegram/SourceFiles/data/components/sponsored_messages.cpp
+index 210b335..851a429 100644
+--- a/Telegram/SourceFiles/data/components/sponsored_messages.cpp
++++ b/Telegram/SourceFiles/data/components/sponsored_messages.cpp
+@@ -249,8 +249,7 @@ bool SponsoredMessages::canHaveFor(not_null<History*> history) const {
+}
+ 
+bool SponsoredMessages::canHaveFor(not_null<HistoryItem*> item) const {
+- return item->history()->peer->isBroadcast()
+- && item->isRegular();
++ return false;
+}
+ 
+bool SponsoredMessages::isTopBarFor(not_null<History*> history) const {
+@@ -258,7 +257,7 @@ bool SponsoredMessages::isTopBarFor(not_null<History*> history) const {
+}
+ 
+void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
+- if (!canHaveFor(history) || history->peer->isMegagroup()) {
++ if (1) {
+	return;
+}
+ 
+@@ -298,7 +297,7 @@ void SponsoredMessages::requestForVideo(
+		Fn<void()> done) {
+	Expects(done != nullptr);
+ 
+-	if (!canHaveFor(item)) {
++	if (1) {
+		done({});
+		return;
+	}
+@@ -356,7 +355,7 @@ void SponsoredMessages::requestForVideo(
+void SponsoredMessages::updateForVideo(
+		FullMsgId itemId,
+		SponsoredForVideoState state) {
+-	if (state.initial()) {
++	if (1) {
+		return;
+	}
+	const auto i = _dataForVideo.find(_session->data().peer(itemId.peer));
+@@ -433,7 +432,7 @@ void SponsoredMessages::parseForVideo(
+SponsoredForVideo SponsoredMessages::prepareForVideo(
+		not_null<PeerData*> peer) {
+	const auto i = _dataForVideo.find(peer);
+-	if (i == end(_dataForVideo) || i->second.entries.empty()) {
++	if (1) {
+		return {};
+	}
+	return SponsoredForVideo{
+@@ -449,6 +448,7 @@ SponsoredForVideo SponsoredMessages::prepareForVideo(
+FullMsgId SponsoredMessages::fillTopBar(
+		not_null<History*> history,
+		not_null<HistoryView::TopBarWidget*> widget) {
++	return {};
+	const auto it = _data.find(history);
+	if (it != end(_data)) {
+		auto &list = it->second;
+@@ -464,7 +464,6 @@ FullMsgId SponsoredMessages::fillTopBar(
+		return fullId;
+	}
+}
+-	return {};
+}
+ 
+rpl::producer<> SponsoredMessages::itemRemoved(const FullMsgId &fullId) {
+@@ -498,6 +497,7 @@ void SponsoredMessages::append(
+		Fn<std::vector<Fn<std::unique_ptr<Media::View::PlaybackDocument>>()>()> entries,
+		not_null<History*> history,
+		const MTPSponsoredMessage &message) {
++	return;
+	const auto &data = message.data();
+	const auto randomId = data.vrandom_id().v;
+	auto mediaPhoto = (PhotoData*)nullptr;
+@@ -634,6 +634,7 @@ void SponsoredMessages::clearItems(not_null<History*> history) {
+ 
+const SponsoredMessages::Entry *SponsoredMessages::find(
+		const FullMsgId &fullId) const {
++	return nullptr;
+	if (!peerIsChannel(fullId.peer) && !peerIsUser(fullId.peer)) {
+		return nullptr;
+	}
+@@ -821,6 +822,7 @@ SponsoredReportAction SponsoredMessages::createReportCallback(
+ 
+SponsoredMessages::State SponsoredMessages::state(
+		not_null<History*> history) const {
++	return State::None;
+	const auto it = _data.find(history);
+	return (it == end(_data)) ? State::None : it->second.state;
+}
