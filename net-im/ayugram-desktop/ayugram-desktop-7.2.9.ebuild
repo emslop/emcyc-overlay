@@ -64,10 +64,9 @@ CRATES="
 	der@0.7.10
 	digest@0.10.7
 	displaydoc@0.2.7
-	ed25519-dalek-derive@0.1.1
 	ed25519-dalek@2.2.0
 	ed25519@2.2.3
-	equivalent@0.2.2
+	equivalent@1.0.2
 	errno@0.3.14
 	fastnum@0.7.4
 	fastrand@2.5.0
@@ -165,7 +164,7 @@ CRATES="
 	serde_core@1.0.229
 	serde_derive@1.0.229
 	serde_json@1.0.151
-	serde_spanned@1.1.4
+	serde_spanned@1.1.1
 	sha2@0.10.9
 	shlex@2.0.1
 	signature@2.2.0
