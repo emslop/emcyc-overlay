@@ -30,10 +30,6 @@ jobs:
             -name 'ayugram-desktop-*.ebuild' | sort -V | tail -1)
           echo "file=$file" >> "$GITHUB_OUTPUT"
 
-          tlottie_file=$(find media-libs/tlottie -maxdepth 1 \
-            -name 'tlottie-*.ebuild' | sort -V | tail -1)
-          echo "tlottie_file=$tlottie_file" >> "$GITHUB_OUTPUT"
-
       - name: Generate Manifests and commit
         shell: bash
         run: |
@@ -43,14 +39,9 @@ jobs:
 
           export DISTDIR="$(mktemp -d)"
 
-          # A stale or wrong digest in an existing Manifest makes `ebuild manifest`
-          # refuse the freshly fetched file, so always rebuild from scratch.
-          rm -f net-im/ayugram-desktop/Manifest media-libs/tlottie/Manifest
-
           ebuild "${{ steps.ebuild.outputs.file }}" manifest
-          ebuild "${{ steps.ebuild.outputs.tlottie_file }}" manifest
 
-          for m in net-im/ayugram-desktop/Manifest media-libs/tlottie/Manifest; do
+          for m in net-im/ayugram-desktop/Manifest; do
             if [[ ! -s "$m" ]]; then
               echo "::error::$m is empty after regeneration"
               exit 1
@@ -58,12 +49,11 @@ jobs:
           done
 
           if git diff --quiet -- \
-            net-im/ayugram-desktop/Manifest \
-            media-libs/tlottie/Manifest; then
+            net-im/ayugram-desktop/Manifest; then
             echo "Manifests are already up to date"
             exit 0
           fi
 
-          git add net-im/ayugram-desktop/Manifest media-libs/tlottie/Manifest
+          git add net-im/ayugram-desktop/Manifest
           git commit -m "net-im/ayugram-desktop: regenerate Manifests"
           git push origin HEAD:main
