@@ -5,7 +5,7 @@ EAPI=8
 
 PYTHON_COMPAT=( python3_{12..15} )
 
-inherit xdg cmake python-any-r1 optfeature flag-o-matic
+inherit xdg cmake python-any-r1 optfeature flag-o-matic toolchain-funcs
 
 DESCRIPTION="Telegram desktop client with customization and Ghost mode"
 HOMEPAGE="https://github.com/AyuGram/AyuGramDesktop"
@@ -173,8 +173,9 @@ src_configure() {
 
 	# setuptools/distutils treats an empty CPP environment variable as the
 	# preprocessor command, causing g-ir-scanner to execute the first
-	# CPPFLAGS token (e.g. -I. or -DNDEBUG) as the compiler executable.
-	export CPP="${CPP:-${CC} -E}"
+	# CPPFLAGS token as the compiler executable. Use the toolchain's full
+	# "compiler -E" command, since CC may be empty in this environment.
+	export CPP="${CPP:-$(tc-getCPP)}"
 
 	# Evil flag (See https://bugs.gentoo.org/919201)
 	filter-flags -fno-delete-null-pointer-checks
