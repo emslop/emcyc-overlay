@@ -171,13 +171,18 @@ src_configure() {
 	# - bug 920819: system-wide directories ignored when variable is set
 	export XDG_DATA_DIRS="${ESYSROOT}/usr/share"
 
+	# setuptools/distutils treats an empty CPP environment variable as the
+	# preprocessor command, causing g-ir-scanner to execute the first
+	# CPPFLAGS token (e.g. -I. or -DNDEBUG) as the compiler executable.
+	export CPP="${CPP:-${CC} -E}"
+
 	# Evil flag (See https://bugs.gentoo.org/919201)
 	filter-flags -fno-delete-null-pointer-checks
 
 	# The ABI of media-libs/tg_owt breaks if the -DNDEBUG flag doesn't keep
 	# the same state across both projects.
 	# See https://bugs.gentoo.org/866055
-	append-cxxflags -DNDEBUG
+	append-cppflags -DNDEBUG
 
 	local no_webkit_wayland=$(use webkit && use wayland && echo no || echo yes)
 	local use_webkit_wayland=$(use webkit && use wayland && echo yes || echo no)
