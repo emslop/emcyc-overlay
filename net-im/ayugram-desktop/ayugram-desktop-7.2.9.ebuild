@@ -171,11 +171,11 @@ src_configure() {
 	# - bug 920819: system-wide directories ignored when variable is set
 	export XDG_DATA_DIRS="${ESYSROOT}/usr/share"
 
-	# setuptools/distutils treats an empty CPP environment variable as the
-	# preprocessor command, causing g-ir-scanner to execute the first
-	# CPPFLAGS token as the compiler executable. Use the toolchain's full
-	# "compiler -E" command, since CC may be empty in this environment.
-	export CPP="${CPP:-$(tc-getCPP)}"
+	# g-ir-scanner (through setuptools/distutils) takes its compiler and
+	# preprocessor from the CC/CXX/CPP environment variables. When they are
+	# set but empty, it executes the first flag (-I., -O2, ...) as the
+	# program. Export the real toolchain commands.
+	tc-export CC CXX CPP
 
 	# Evil flag (See https://bugs.gentoo.org/919201)
 	filter-flags -fno-delete-null-pointer-checks
