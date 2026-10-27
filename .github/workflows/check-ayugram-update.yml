@@ -31,15 +31,25 @@ jobs:
           echo "file=$file" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Rename ebuild and commit bump
+      - name: Rename ebuild and commit bump to bot branch
         if: steps.release.outputs.version != steps.current.outputs.version
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Base the update branch on the latest bot branch when it exists,
+          # otherwise start from the current default branch checkout.
+          if git fetch origin bot; then
+            git checkout -B bot origin/bot
+          else
+            git checkout -B bot
+          fi
+
           git mv "${{ steps.current.outputs.file }}" \
             "net-im/ayugram-desktop/ayugram-desktop-${{ steps.release.outputs.version }}.ebuild"
           git commit -m "net-im/ayugram-desktop: bump to ${{ steps.release.outputs.version }}"
-          git push origin HEAD:main
+          git push origin bot
 
       - name: Trigger Gentoo manifest workflow
         if: steps.release.outputs.version != steps.current.outputs.version

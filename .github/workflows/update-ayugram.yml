@@ -21,6 +21,8 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - uses: actions/checkout@v4
+        with:
+          ref: bot
 
       - name: Detect newest ebuilds
         id: ebuild
@@ -56,4 +58,4 @@ jobs:
 
           git add net-im/ayugram-desktop/Manifest
           git commit -m "net-im/ayugram-desktop: regenerate Manifests"
-          git push origin HEAD:main
+          git push origin bot
