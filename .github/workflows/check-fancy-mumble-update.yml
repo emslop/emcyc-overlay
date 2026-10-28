@@ -1,0 +1,59 @@
+name: Check fancy-mumble update
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bot
+
+      - name: Check latest FancyMumble release
+        id: release
+        run: |
+          tag=$(curl -fsSL \
+            https://api.github.com/repos/Fancy-Mumble/FancyMumble/releases/latest \
+            | jq -r '.tag_name | ltrimstr("v")')
+          # Convert upstream v0.4.0-beta.208 to Gentoo 0.4.0_beta208.
+          version=$(printf '%s' "$tag" | sed 's/-beta\./_beta/')
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Detect current ebuild version
+        id: current
+        run: |
+          file=$(find net-voip/fancy-mumble -maxdepth 1 \
+            -name 'fancy-mumble-*.ebuild' | sort -V | tail -1)
+          version=$(basename "$file" .ebuild | sed 's/.*-//')
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Rename ebuild and commit bump to bot branch
+        if: steps.release.outputs.version != steps.current.outputs.version
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B bot origin/bot
+
+          git mv "${{ steps.current.outputs.file }}" \
+            "net-voip/fancy-mumble/fancy-mumble-${{ steps.release.outputs.version }}.ebuild"
+          git commit -m "net-voip/fancy-mumble: bump to ${{ steps.release.outputs.version }}"
+          git push origin bot
+
+      - name: Trigger Gentoo manifest workflow
+        if: steps.release.outputs.version != steps.current.outputs.version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/actions/workflows/update-fancy-mumble.yml/dispatches \
+            -f ref=bot
