@@ -39,7 +39,7 @@ BDEPEND="
 	>=dev-lang/rust-1.88
 	>=net-libs/nodejs-22[npm]
 	dev-vcs/git
-	llvm-core/clang
+	llvm-core/clang:21
 	dev-util/patchelf
 	virtual/pkgconfig
 "
@@ -63,6 +63,8 @@ src_unpack() {
 
 src_compile() {
 	export CARGO_HOME="${WORKDIR}/cargo_home"
+	export LIBCLANG_PATH="${EPREFIX}/usr/lib/llvm/21/lib"
+	export CLANG_PATH="${EPREFIX}/usr/lib/llvm/21/bin/clang"
 	tc-export CC CXX
 
 	pushd crates/mumble-tauri/ui >/dev/null || die
