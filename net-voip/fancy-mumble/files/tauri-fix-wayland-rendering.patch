@@ -1,0 +1,33 @@
+diff --git a/crates/mumble-tauri/src/platform/linux/webview.rs b/crates/mumble-tauri/src/platform/linux/webview.rs
+index 1bf7bff..771a897 100644
+--- a/crates/mumble-tauri/src/platform/linux/webview.rs
++++ b/crates/mumble-tauri/src/platform/linux/webview.rs
+@@ -214,14 +214,6 @@ fn autodetect_plugin_available() -> bool {
+ ///
+ /// See <https://github.com/winfunc/opcode/issues/26>
+ pub fn pre_init() {
+-    // Temporary Linux workaround: disable WebKit compositing and default to
+-    // X11 before GTK init, unless the caller already provided overrides.
+-    if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none() {
+-        unsafe { std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1") };
+-    }
+-    if std::env::var_os("GDK_BACKEND").is_none() {
+-        unsafe { std::env::set_var("GDK_BACKEND", "x11") };
+-    }
+     apply_stream_decoder_preference();
+ 
+     // Re-exec with host-first LD_LIBRARY_PATH before any AppImage libs load.
+diff --git a/crates/mumble-tauri/tauri.conf.json b/crates/mumble-tauri/tauri.conf.json
+index a8a190b..c0d2f60 100644
+--- a/crates/mumble-tauri/tauri.conf.json
++++ b/crates/mumble-tauri/tauri.conf.json
+@@ -17,7 +17,7 @@
+         "height": 768,
+         "resizable": true,
+         "decorations": false,
+-        "transparent": true,
++        "transparent": false,
+         "shadow": false,
+         "visible": false
+       }
+

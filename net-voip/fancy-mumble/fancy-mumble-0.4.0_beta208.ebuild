@@ -46,6 +46,8 @@ BDEPEND="
 
 QA_FLAGS_IGNORED="usr/bin/fancy-mumble"
 
+PATCHES=( "${FILESDIR}/tauri-fix-wayland-rendering.patch" )
+
 src_unpack() {
 	default
 
