@@ -63,7 +63,7 @@ src_unpack() {
 
 src_compile() {
 	export CARGO_HOME="${WORKDIR}/cargo_home"
-	export LIBCLANG_PATH="${EPREFIX}/usr/lib/llvm/21/lib"
+	export LIBCLANG_PATH="${EPREFIX}/usr/lib/llvm/21/$(get_libdir)"
 	export CLANG_PATH="${EPREFIX}/usr/lib/llvm/21/bin/clang"
 	tc-export CC CXX
 
