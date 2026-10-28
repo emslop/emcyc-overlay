@@ -1,0 +1,58 @@
+name: Update fancy-mumble manifest
+
+on:
+  repository_dispatch:
+    types: [fancy-mumble-update]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  manifest:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/emslop/gentoo-ci:latest
+    steps:
+      - name: Trust workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: bot
+
+      - name: Detect newest ebuilds
+        id: ebuild
+        shell: bash
+        run: |
+          file=$(find net-voip/fancy-mumble -maxdepth 1 \
+            -name 'fancy-mumble-*.ebuild' | sort -V | tail -1)
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Manifests and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          export DISTDIR="$(mktemp -d)"
+
+          ebuild "${{ steps.ebuild.outputs.file }}" manifest
+
+          for m in net-voip/fancy-mumble/Manifest; do
+            if [[ ! -s "$m" ]]; then
+              echo "::error::$m is empty after regeneration"
+              exit 1
+            fi
+          done
+
+          if git diff --quiet -- \
+            net-voip/fancy-mumble/Manifest; then
+            echo "Manifests are already up to date"
+            exit 0
+          fi
+
+          git add net-voip/fancy-mumble/Manifest
+          git commit -m "net-voip/fancy-mumble: regenerate Manifests"
+          git push origin bot
