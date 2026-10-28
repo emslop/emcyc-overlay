@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: bot
 
       - name: Check latest AyuGram release
         id: release
@@ -38,13 +40,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Base the update branch on the latest bot branch when it exists,
-          # otherwise start from the current default branch checkout.
-          if git fetch origin bot; then
-            git checkout -B bot origin/bot
-          else
-            git checkout -B bot
-          fi
+          git checkout -B bot origin/bot
 
           git mv "${{ steps.current.outputs.file }}" \
             "net-im/ayugram-desktop/ayugram-desktop-${{ steps.release.outputs.version }}.ebuild"
