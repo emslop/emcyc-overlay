@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>emslop@gentoo.local</email>
+		<name>emcyc-overlay</name>
+	</maintainer>
+	<upstream>
+		<bugs-to>https://github.com/PixelGuys/Cubyz/issues</bugs-to>
+		<remote-id type="github">PixelGuys/Cubyz</remote-id>
+	</upstream>
+</pkgmetadata>
