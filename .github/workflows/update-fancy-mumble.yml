@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: fancy-mumble-update
+  cancel-in-progress: false
+
 jobs:
   manifest:
     runs-on: ubuntu-latest
@@ -20,39 +24,46 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: bot
+          fetch-depth: 0
 
-      - name: Detect newest ebuilds
+      - name: Detect newest versioned ebuild
         id: ebuild
         shell: bash
         run: |
+          set -euo pipefail
           file=$(find net-voip/fancy-mumble -maxdepth 1 \
-            -name 'fancy-mumble-*.ebuild' | sort -V | tail -1)
+            -name 'fancy-mumble-*.ebuild' ! -name 'fancy-mumble-9999.ebuild' \
+            | sort -V | tail -1)
+          [[ -n "$file" ]] || { echo "::error::No versioned ebuild found"; exit 1; }
           echo "file=$file" >> "$GITHUB_OUTPUT"
 
-      - name: Generate Manifests and commit
+      - name: Generate Manifest and commit
+        env:
+          EBUILD_FILE: ${{ steps.ebuild.outputs.file }}
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          export DISTDIR="$(mktemp -d)"
+          export DISTDIR
+          DISTDIR=$(mktemp -d)
+          trap 'rm -rf "$DISTDIR"' EXIT
+          ebuild "$EBUILD_FILE" manifest
 
-          ebuild "${{ steps.ebuild.outputs.file }}" manifest
+          manifest="net-voip/fancy-mumble/Manifest"
+          if [[ ! -s "$manifest" ]]; then
+            echo "::error::$manifest is empty after regeneration"
+            exit 1
+          fi
 
-          for m in net-voip/fancy-mumble/Manifest; do
-            if [[ ! -s "$m" ]]; then
-              echo "::error::$m is empty after regeneration"
-              exit 1
-            fi
-          done
-
-          if git diff --quiet -- \
-            net-voip/fancy-mumble/Manifest; then
-            echo "Manifests are already up to date"
+          # Stage first: git diff alone misses a newly created Manifest.
+          git add -- "$manifest"
+          if git diff --cached --quiet -- "$manifest"; then
+            echo "Manifest is already up to date"
             exit 0
           fi
 
-          git add net-voip/fancy-mumble/Manifest
-          git commit -m "net-voip/fancy-mumble: regenerate Manifests"
-          git push origin bot
+          git commit -m "net-voip/fancy-mumble: regenerate Manifest"
+          git pull --rebase origin bot
+          git push origin HEAD:bot
