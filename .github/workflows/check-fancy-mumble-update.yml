@@ -7,6 +7,11 @@ on:
 
 permissions:
   contents: write
+  actions: write
+
+concurrency:
+  group: fancy-mumble-update
+  cancel-in-progress: false
 
 jobs:
   check:
@@ -15,45 +20,62 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: bot
+          fetch-depth: 0
 
-      - name: Check latest FancyMumble release
+      - name: Check latest Fancy Mumble release
         id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
-          tag=$(curl -fsSL \
-            https://api.github.com/repos/Fancy-Mumble/FancyMumble/releases/latest \
-            | jq -r '.tag_name | ltrimstr("v")')
-          # Convert upstream v0.4.0-beta.208 to Gentoo 0.4.0_beta208.
-          version=$(printf '%s' "$tag" | sed 's/-beta\./_beta/')
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          # /releases/latest excludes prereleases. Select the most recently
+          # published non-draft release, including alpha/beta/rc releases.
+          tag=$(gh api --paginate --slurp \
+            'repos/Fancy-Mumble/FancyMumble/releases?per_page=100' \
+            | jq -er '[.[][] | select(.draft == false)]
+              | max_by(.published_at) | .tag_name')
+          version=$(printf '%s' "${tag#v}" | sed -E 's/-(alpha|beta|rc)\./_\1/')
+          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+)*(_(alpha|beta|rc)[0-9]+)?$ ]]; then
+            echo "::error::Unsupported Fancy Mumble tag: $tag"
+            exit 1
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Detect current ebuild version
+      - name: Detect current versioned ebuild
         id: current
+        shell: bash
         run: |
+          set -euo pipefail
           file=$(find net-voip/fancy-mumble -maxdepth 1 \
-            -name 'fancy-mumble-*.ebuild' | sort -V | tail -1)
-          version=$(basename "$file" .ebuild | sed 's/.*-//')
+            -name 'fancy-mumble-*.ebuild' ! -name 'fancy-mumble-9999.ebuild' \
+            | sort -V | tail -1)
+          [[ -n "$file" ]] || { echo "::error::No versioned ebuild found"; exit 1; }
+          version=${file##*/fancy-mumble-}
+          version=${version%.ebuild}
           echo "file=$file" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Rename ebuild and commit bump to bot branch
         if: steps.release.outputs.version != steps.current.outputs.version
+        env:
+          CURRENT_FILE: ${{ steps.current.outputs.file }}
+          VERSION: ${{ steps.release.outputs.version }}
+        shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git checkout -B bot origin/bot
+          git mv "$CURRENT_FILE" "net-voip/fancy-mumble/fancy-mumble-${VERSION}.ebuild"
+          git commit -m "net-voip/fancy-mumble: bump to ${VERSION}"
+          git pull --rebase origin bot
+          git push origin HEAD:bot
 
-          git mv "${{ steps.current.outputs.file }}" \
-            "net-voip/fancy-mumble/fancy-mumble-${{ steps.release.outputs.version }}.ebuild"
-          git commit -m "net-voip/fancy-mumble: bump to ${{ steps.release.outputs.version }}"
-          git push origin bot
-
+      # Also repair missing/stale manifests when the version is unchanged.
       - name: Trigger Gentoo manifest workflow
-        if: steps.release.outputs.version != steps.current.outputs.version
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api repos/${{ github.repository }}/actions/workflows/update-fancy-mumble.yml/dispatches \
+          gh api "repos/${{ github.repository }}/actions/workflows/update-fancy-mumble.yml/dispatches" \
             -f ref=bot
