@@ -1,0 +1,82 @@
+name: Check proton-cachyos update
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: proton-cachyos-update
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bot
+          fetch-depth: 0
+
+      - name: Check latest Proton CachyOS release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The ebuild supports both USE=slr and USE=native. Releases are
+          # published for SLR; require the corresponding native source tag.
+          tag=$(gh api --paginate --slurp \
+            'repos/CachyOS/proton-cachyos/releases?per_page=100' \
+            | jq -er '[.[][] | select(.draft == false and .prerelease == false)
+              | select(.tag_name | test("^cachyos-[0-9]+(\\.[0-9]+)+-[0-9]{8}-slr$"))]
+              | max_by(.published_at) | .tag_name')
+          gh api "repos/CachyOS/proton-cachyos/git/ref/tags/${tag%-slr}-native" > /dev/null
+          # cachyos-11.0-20261015-slr -> 11.0.20261015
+          version=${tag#cachyos-}
+          version=${version%-slr}
+          version=${version/-/.}
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Detect current versioned ebuild
+        id: current
+        shell: bash
+        run: |
+          set -euo pipefail
+          file=$(find games-util/proton-cachyos -maxdepth 1 \
+            -name 'proton-cachyos-*.ebuild' ! -name 'proton-cachyos-9999.ebuild' \
+            | sort -V | tail -1)
+          [[ -n "$file" ]] || { echo "::error::No versioned ebuild found"; exit 1; }
+          version=${file##*/proton-cachyos-}
+          version=${version%.ebuild}
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Rename ebuild and commit bump to bot branch
+        if: steps.release.outputs.version != steps.current.outputs.version
+        env:
+          CURRENT_FILE: ${{ steps.current.outputs.file }}
+          VERSION: ${{ steps.release.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git mv "$CURRENT_FILE" "games-util/proton-cachyos/proton-cachyos-${VERSION}.ebuild"
+          git commit -m "games-util/proton-cachyos: bump to ${VERSION}"
+          git pull --rebase origin bot
+          git push origin HEAD:bot
+
+      # Also repair missing/stale manifests when the version is unchanged.
+      - name: Trigger Gentoo manifest workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/actions/workflows/update-proton-cachyos.yml/dispatches" \
+            -f ref=bot
