@@ -22,7 +22,7 @@ BDEPEND="
 	=dev-lang/zig-0.16.0*
 "
 
-QA_FLAGS_IGNORED="usr/share/cubyz/bin/Cubyz"
+QA_FLAGS_IGNORED="usr/share/cubyz/bin/cubyz"
 
 src_compile() {
 	export ZIG_GLOBAL_CACHE_DIR="${T}/zig-global-cache"
@@ -35,12 +35,16 @@ src_compile() {
 
 src_install() {
 	exeinto /usr/share/cubyz/bin
-	doexe zig-out/bin/Cubyz
+	newexe zig-out/bin/Cubyz cubyz
 
 	insinto /usr/share/cubyz
 	doins -r assets
 
-	dosym -r /usr/share/cubyz/bin/Cubyz /usr/bin/cubyz
+	exeinto /usr/bin
+	newexe "${FILESDIR}"/cubyz-launcher cubyz
+
+	insinto /usr/share/applications
+	doins "${FILESDIR}"/cubyz.desktop
 
 	einstalldocs
 }

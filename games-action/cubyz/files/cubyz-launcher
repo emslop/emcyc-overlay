@@ -1,0 +1,3 @@
+#!/bin/sh
+cd /usr/share/cubyz || exit 1
+exec /usr/share/cubyz/bin/cubyz "$@"
