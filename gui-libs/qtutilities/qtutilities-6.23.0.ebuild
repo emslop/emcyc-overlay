@@ -58,7 +58,7 @@ RDEPEND="
 	dev-qt/qttools:6[linguist]
 "
 DEPEND="${RDEPEND}"
-BDEPEND="dev-util/corrosion"
+BDEPEND="dev-build/corrosion"
 
 QA_FLAGS_IGNORED="usr/libexec/.*"
 
