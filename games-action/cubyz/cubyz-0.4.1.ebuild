@@ -38,7 +38,7 @@ src_install() {
 	doexe zig-out/bin/Cubyz
 
 	insinto /usr/share/cubyz
-	doins -r zig-out/assets
+	doins -r assets
 
 	dosym -r /usr/share/cubyz/bin/Cubyz /usr/bin/cubyz
 
