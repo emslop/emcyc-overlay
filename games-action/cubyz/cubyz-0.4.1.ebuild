@@ -3,6 +3,8 @@
 
 EAPI=8
 
+inherit multiprocessing
+
 DESCRIPTION="An open-source voxel game with procedural terrain and modding support"
 HOMEPAGE="https://github.com/PixelGuys/Cubyz"
 SRC_URI="https://github.com/PixelGuys/Cubyz/archive/refs/tags/${PV}.tar.gz -> ${P}.tar.gz"
@@ -27,7 +29,7 @@ src_compile() {
 	export ZIG_LOCAL_CACHE_DIR="${T}/zig-local-cache"
 
 	zig build -Doptimize=ReleaseFast -Drelease=true \
-		--jobs "$(makeopts_jobs)" \
+		-j"$(makeopts_jobs)" \
 		|| die "zig build failed"
 }
 
