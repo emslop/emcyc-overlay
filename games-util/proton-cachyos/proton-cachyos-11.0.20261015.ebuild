@@ -27,7 +27,7 @@ S="${WORKDIR}/${P}"
 
 LICENSE="BSD LGPL-2.1+ MIT ZLIB all-rights-reserved"
 SLOT="0"
-KEYWORDS="~amd64"
+KEYWORDS=""
 
 IUSE="+slr native"
 REQUIRED_USE="^^ ( slr native )"
