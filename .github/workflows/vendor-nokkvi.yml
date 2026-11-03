@@ -11,6 +11,7 @@ on:
         description: nokkvi upstream commit or tag to vendor
         required: true
         default: c7e34b3f61a14f6c9f78d72bed4f2546b3435096
+  push:
 
 permissions:
   contents: write
