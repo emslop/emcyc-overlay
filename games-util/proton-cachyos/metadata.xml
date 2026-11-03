@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<upstream>
+		<remote-id type="github">CachyOS/proton-cachyos</remote-id>
+	</upstream>
+	<use>
+		<flag name="slr">Build the Steam Linux Runtime flavour (tag *-slr) inside the Proton SDK container using podman</flag>
+		<flag name="native">Build the host-native flavour (tag *-native) against system libraries without a container</flag>
+	</use>
+</pkgmetadata>

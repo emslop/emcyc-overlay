@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Cubyz
+Comment=Open-source voxel game with procedural terrain and modding support
+Exec=/usr/bin/cubyz
+Icon=/usr/share/cubyz/assets/cubyz/logo.png
+Terminal=false
+Categories=Game;ActionGame;

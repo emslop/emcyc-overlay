@@ -1,6 +1,6 @@
 # emcyc-overlay
 
-Electromagnetic overlay with AI slop ebuilds. Packages on the branch `main` are tested and working.
+Electromagnetic overlay with AI slop ebuilds. Packages with `~amd64` keyword on the branch `main` are tested and working.
 
 ## Adding the repository
 
