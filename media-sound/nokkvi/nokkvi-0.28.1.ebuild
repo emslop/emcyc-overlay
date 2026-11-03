@@ -4,6 +4,7 @@
 EAPI=8
 
 CRATES=""
+RUST_MIN_VER="1.95"
 inherit cargo
 
 COMMIT="c7e34b3f61a14f6c9f78d72bed4f2546b3435096"
@@ -31,7 +32,6 @@ RDEPEND="
 "
 BDEPEND="
 	virtual/pkgconfig
-	virtual/rust
 "
 
 QA_FLAGS_IGNORED="usr/bin/${PN}"
