@@ -159,7 +159,7 @@ declare -A GIT_CRATES=(
  [winit]="https://github.com/iced-rs/winit;48116469f15d3bc52b5e56bb516694be8882870d;winit-%commit%"
 )
 RUST_MIN_VER="1.95"
-inherit cargo
+inherit cargo desktop xdg
 
 COMMIT="c7e34b3f61a14f6c9f78d72bed4f2546b3435096"
 
@@ -201,4 +201,7 @@ src_compile() {
 
 src_install() {
 	cargo_src_install
+
+	newicon -s scalable assets/logo/nokkvi_master.svg "${PN}.svg"
+	make_desktop_entry "${PN}" "Nokkvi" "${PN}" "AudioVideo;Audio;Player;"
 }
