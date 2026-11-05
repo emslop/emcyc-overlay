@@ -129,7 +129,8 @@ def normalize_source(text):
     require(count == 1, "Expected one COMMIT release archive URL")
     text, count = re.subn(r'^S="\$\{WORKDIR\}/\$\{PN\}-\$\{COMMIT\}"\n', '', text, flags=re.MULTILINE)
     require(count == 1, "Expected one COMMIT source directory")
-    text, count = re.subn(r'^inherit cargo$', 'inherit cargo desktop xdg', text, flags=re.MULTILINE)
+    text, count = re.subn(r'^inherit cargo(?: desktop xdg)?$',
+                          'inherit cargo desktop xdg', text, flags=re.MULTILINE)
     require(count == 1, "Expected one cargo inherit line")
     return text
 
