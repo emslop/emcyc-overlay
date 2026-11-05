@@ -27,47 +27,42 @@ jobs:
           tag=$(gh api repos/f-o-o-g-s/nokkvi/releases/latest --jq '.tag_name')
           version=${tag#v}
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$tag" == "v${version}" ]]
           commit=$(gh api "repos/f-o-o-g-s/nokkvi/commits/$tag" --jq '.sha')
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
 
-      - name: Detect current ebuild version
-        id: current
-        shell: bash
-        run: |
-          set -euo pipefail
-          file=$(find media-sound/nokkvi -maxdepth 1 \
-            -name 'nokkvi-*.ebuild' | sort -V | tail -1)
-          version=$(basename "$file" .ebuild)
-          version=${version#nokkvi-}
-          version=${version%-r[0-9]*}
-          echo "file=$file" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
-      - name: Rename ebuild and commit bump to bot branch
-        if: steps.release.outputs.version != steps.current.outputs.version
+      - name: Generate dependency-aware ebuild
+        id: bump
         env:
-          OLD_FILE: ${{ steps.current.outputs.file }}
           VERSION: ${{ steps.release.outputs.version }}
           COMMIT: ${{ steps.release.outputs.commit }}
         shell: bash
         run: |
           set -euo pipefail
+          python .github/scripts/update-nokkvi.py --version "$VERSION" --commit "$COMMIT"
+
+      - name: Commit bump to bot branch
+        if: steps.bump.outputs.updated == 'true'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -B bot origin/bot
-          new_file="media-sound/nokkvi/nokkvi-${VERSION}.ebuild"
-          git mv "$OLD_FILE" "$new_file"
-          sed -i "s/^COMMIT=\".*\"$/COMMIT=\"${COMMIT}\"/" "$new_file"
-          # The copied workflow does not regenerate CRATES or GIT_CRATES.
-          # Review dependency changes before building a newly bumped version.
-          git add "$new_file"
+          git add "media-sound/nokkvi/nokkvi-${VERSION}.ebuild"
+          git diff --cached --check
           git commit -m "media-sound/nokkvi: bump to ${VERSION}"
           git push origin bot
 
       - name: Trigger Gentoo manifest workflow
-        if: steps.release.outputs.version != steps.current.outputs.version
+        if: steps.bump.outputs.updated == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
