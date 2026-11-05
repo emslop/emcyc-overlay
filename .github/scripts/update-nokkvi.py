@@ -121,12 +121,27 @@ def replace_once(text, pattern, replacement):
     return text
 
 
+def normalize_source(text):
+    text, count = re.subn(r'^COMMIT="[0-9a-f]{40}"\n\n', '', text, flags=re.MULTILINE)
+    require(count == 1, "Expected one COMMIT source pin")
+    text, count = re.subn(r'archive/\$\{COMMIT\}\.tar\.gz',
+                          'archive/refs/tags/v${PV}.tar.gz', text)
+    require(count == 1, "Expected one COMMIT release archive URL")
+    text, count = re.subn(r'^S="\$\{WORKDIR\}/\$\{PN\}-\$\{COMMIT\}"\n', '', text, flags=re.MULTILINE)
+    require(count == 1, "Expected one COMMIT source directory")
+    text, count = re.subn(r'^inherit cargo(?: desktop xdg)?$',
+                          'inherit cargo desktop xdg', text, flags=re.MULTILINE)
+    require(count == 1, "Expected one cargo inherit line")
+    return text
+
+
 def render(text, manifests, lock, version):
     require(manifests["Cargo.toml"].get("package", {}).get("name") == "nokkvi",
             "Release is not nokkvi")
     require(package_version(manifests, "Cargo.toml", manifests["Cargo.toml"]["package"]) == version,
             "Release version does not match Cargo.toml")
     registry_block, git_block = blocks(manifests, lock)
+    text = normalize_source(text)
     text = replace_once(text, r'^CRATES="[^"\n]*\n[^\"]*"', registry_block)
     text = replace_once(text, r'^declare -A GIT_CRATES=\(\n[\s\S]*?^\)', git_block)
     require('https://github.com/f-o-o-g-s/nokkvi/archive/refs/tags/v${PV}.tar.gz' in text,
