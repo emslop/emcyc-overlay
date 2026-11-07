@@ -10,7 +10,7 @@ inherit ecm git-r3
 
 DESCRIPTION="Modern and fast terminal for KDE Plasma and other desktops"
 HOMEPAGE="https://invent.kde.org/utilities/kwi"
-EGIT_REPO_URI="https://github.com/emslop/kwi.git"
+EGIT_REPO_URI="https://github.com/KDE/kwi.git"
 
 LICENSE="|| ( GPL-2 GPL-3 ) || ( LGPL-2.1 LGPL-3 )"
 SLOT="0"
