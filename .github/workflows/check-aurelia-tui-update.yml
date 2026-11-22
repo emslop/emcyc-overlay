@@ -7,6 +7,11 @@ on:
 
 permissions:
   contents: write
+  actions: write
+
+concurrency:
+  group: aurelia-tui-update
+  cancel-in-progress: false
 
 jobs:
   check:
@@ -15,40 +20,70 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: bot
+          fetch-depth: 0
 
       - name: Check latest Aurelia-TUI release
         id: release
+        shell: bash
         run: |
+          set -euo pipefail
           latest=$(curl -fsSL \
             https://api.github.com/repos/Drackrath/Aurelia-TUI/releases/latest \
-            | jq -r '.tag_name | ltrimstr("v")')
+            | jq -er '.tag_name | strings | select(length > 0) | ltrimstr("v")')
+          [[ $latest =~ ^[0-9]+(\.[0-9]+)*$ ]] || { echo "::error::Unsupported release version"; exit 1; }
           echo "version=$latest" >> "$GITHUB_OUTPUT"
 
       - name: Detect current ebuild version
         id: current
+        shell: bash
         run: |
-          file=$(find games-util/aurelia-tui -maxdepth 1 \
-            -name 'aurelia-tui-*.ebuild' | sort -V | tail -1)
-          version=$(basename "$file" .ebuild | sed 's/.*-//')
+          set -euo pipefail
+          file=$(find games-util/aurelia-tui -maxdepth 1 -type f \
+            -name 'aurelia-tui-*.ebuild' ! -name 'aurelia-tui-9999*.ebuild' | sort -V | tail -1)
+          version=${file##*/}
+          version=${version#aurelia-tui-}
+          version=${version%.ebuild}
+          [[ -f $file && $version =~ ^[0-9]+(\.[0-9]+)*(-r[0-9]+)?$ ]] || { echo "::error::Invalid current ebuild"; exit 1; }
           echo "file=$file" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "version=${version%-r*}" >> "$GITHUB_OUTPUT"
+
+      - name: Compare versions
+        id: compare
+        env:
+          CURRENT: ${{ steps.current.outputs.version }}
+          LATEST: ${{ steps.release.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import os
+          def version(value):
+              parts = [int(part) for part in value.split(".")]
+              while parts and parts[-1] == 0:
+                  parts.pop()
+              return tuple(parts)
+          print("newer=" + str(version(os.environ["LATEST"]) > version(os.environ["CURRENT"])).lower())
+          PY
 
       - name: Rename ebuild and commit bump to bot branch
-        if: steps.release.outputs.version != steps.current.outputs.version
+        if: steps.compare.outputs.newer == 'true'
+        env:
+          CURRENT_FILE: ${{ steps.current.outputs.file }}
+          VERSION: ${{ steps.release.outputs.version }}
+        shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git checkout -B bot origin/bot
-
-          git mv "${{ steps.current.outputs.file }}" \
-            "games-util/aurelia-tui/aurelia-tui-${{ steps.release.outputs.version }}.ebuild"
-          git commit -m "games-util/aurelia-tui: bump to ${{ steps.release.outputs.version }}"
-          git push origin bot
+          target="games-util/aurelia-tui/aurelia-tui-${VERSION}.ebuild"
+          [[ ! -e $target ]] || { echo "::error::Target ebuild already exists"; exit 1; }
+          git mv -- "$CURRENT_FILE" "$target"
+          git commit -m "games-util/aurelia-tui: bump to ${VERSION}"
+          git pull --rebase origin bot
+          git push origin HEAD:bot
 
       - name: Trigger Gentoo manifest workflow
-        if: steps.release.outputs.version != steps.current.outputs.version
+        if: steps.compare.outputs.newer == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
