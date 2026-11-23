@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   check:
@@ -18,23 +19,34 @@ jobs:
 
       - name: Check latest Aurelia release
         id: release
+        shell: bash
         run: |
+          set -euo pipefail
           latest=$(curl -fsSL \
             https://api.github.com/repos/Drackrath/Aurelia/releases/latest \
-            | jq -r '.tag_name | ltrimstr("v")')
+            | jq -er '.tag_name | strings | select(length > 0) | ltrimstr("v")')
+          if [[ ! $latest =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "::error::Missing or unsupported Aurelia release version"
+            exit 1
+          fi
           echo "version=$latest" >> "$GITHUB_OUTPUT"
 
-      - name: Detect current ebuild version
+      - name: Detect current ebuild and compare versions
         id: current
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        shell: bash
         run: |
-          file=$(find games-util/aurelia -maxdepth 1 \
-            -name 'aurelia-*.ebuild' | sort -V | tail -1)
-          version=$(basename "$file" .ebuild | sed 's/.*-//')
-          echo "file=$file" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          python3 .github/scripts/check-update-version.py \
+            games-util/aurelia aurelia "$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Rename ebuild and commit bump to bot branch
-        if: steps.release.outputs.version != steps.current.outputs.version
+        if: steps.current.outputs.newer == 'true'
+        env:
+          CURRENT_FILE: ${{ steps.current.outputs.file }}
+          LATEST_VERSION: ${{ steps.release.outputs.version }}
+        shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -42,13 +54,14 @@ jobs:
 
           git checkout -B bot origin/bot
 
-          git mv "${{ steps.current.outputs.file }}" \
-            "games-util/aurelia/aurelia-${{ steps.release.outputs.version }}.ebuild"
-          git commit -m "games-util/aurelia: bump to ${{ steps.release.outputs.version }}"
+          target="games-util/aurelia/aurelia-${LATEST_VERSION}.ebuild"
+          [[ ! -e $target ]] || { echo "::error::Target ebuild already exists"; exit 1; }
+          git mv -- "$CURRENT_FILE" "$target"
+          git commit -m "games-util/aurelia: bump to ${LATEST_VERSION}"
           git push origin bot
 
       - name: Trigger Gentoo manifest workflow
-        if: steps.release.outputs.version != steps.current.outputs.version
+        if: steps.current.outputs.newer == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

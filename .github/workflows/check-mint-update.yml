@@ -33,22 +33,18 @@ jobs:
             | jq -er '.tag_name | ltrimstr("v") | select(test("^[0-9]+(\\.[0-9]+)+$"))')
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Detect current versioned ebuild
+      - name: Detect current ebuild and compare versions
         id: current
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
-          file=$(find dev-zig/mint -maxdepth 1 \
-            -name 'mint-*.ebuild' ! -name 'mint-9999.ebuild' \
-            | sort -V | tail -1)
-          [[ -n "$file" ]] || { echo "::error::No versioned ebuild found"; exit 1; }
-          version=${file##*/mint-}
-          version=${version%.ebuild}
-          echo "file=$file" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/check-update-version.py \
+            dev-zig/mint mint "$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Rename ebuild and commit bump to bot branch
-        if: steps.release.outputs.version != steps.current.outputs.version
+        if: steps.current.outputs.newer == 'true'
         env:
           CURRENT_FILE: ${{ steps.current.outputs.file }}
           VERSION: ${{ steps.release.outputs.version }}
@@ -58,7 +54,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git mv "$CURRENT_FILE" "dev-zig/mint/mint-${VERSION}.ebuild"
+          target="dev-zig/mint/mint-${VERSION}.ebuild"
+          [[ ! -e $target ]] || { echo "::error::Target ebuild already exists"; exit 1; }
+          git mv -- "$CURRENT_FILE" "$target"
           git commit -m "dev-zig/mint: bump to ${VERSION}"
           git pull --rebase origin bot
           git push origin HEAD:bot

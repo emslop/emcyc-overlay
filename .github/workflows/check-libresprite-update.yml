@@ -1,0 +1,81 @@
+name: Check libresprite update
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: libresprite-update
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bot
+          fetch-depth: 0
+
+      - name: Check latest stable LibreSprite release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release=$(gh api repos/LibreSprite/LibreSprite/releases/latest)
+          tag=$(jq -er '.tag_name' <<< "$release")
+          if [[ ! "$tag" =~ ^v([0-9]+(\.[0-9]+)*)$ ]]; then
+            echo "::error::Unsupported LibreSprite tag: $tag"
+            exit 1
+          fi
+          version=${tag#v}
+          jq -e 'any(.assets[]; .name == "SOURCE.CODE.+.submodules.tar.gz" and .state == "uploaded")' \
+            <<< "$release" > /dev/null
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Copy ebuild and commit newer version to bot branch
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          package=media-gfx/libresprite
+          file=$(find "$package" -maxdepth 1 \
+            -name 'libresprite-*.ebuild' ! -name 'libresprite-9999.ebuild' \
+            | sort -V | tail -1)
+          [[ -n "$file" ]] || { echo "::error::No versioned ebuild found"; exit 1; }
+          current=${file##*/libresprite-}
+          current=${current%.ebuild}
+          if [[ ! "$current" =~ ^[0-9]+(\.[0-9]+)*(-r[0-9]+)?$ ]]; then
+            echo "::error::Unsupported current version: $current"
+            exit 1
+          fi
+          current=${current%-r*}
+          if [[ "$VERSION" == "$current" ]] || \
+            [[ "$(printf '%s\n' "$current" "$VERSION" | sort -V | tail -1)" != "$VERSION" ]]; then
+            echo "No newer stable release"
+            exit 0
+          fi
+          target="$package/libresprite-${VERSION}.ebuild"
+          [[ ! -e "$target" ]] || { echo "::error::$target already exists"; exit 1; }
+          cp -- "$file" "$target"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "$target"
+          git commit -m "media-gfx/libresprite: bump to ${VERSION}"
+          git pull --rebase origin bot
+          git push origin HEAD:bot
+
+      - name: Trigger Gentoo manifest workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/actions/workflows/update-libresprite.yml/dispatches" \
+            -f ref=bot
